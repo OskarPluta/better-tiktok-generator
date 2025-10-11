@@ -1,0 +1,12 @@
+[project]
+name = "tiktokv2"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "ffmpeg-python>=0.2.0",
+    "moviepy>=2.2.1",
+    "openai-whisper>=20250625",
+    "rapidfuzz>=3.14.1",
+]
