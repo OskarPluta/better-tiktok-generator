@@ -17,3 +17,6 @@ wheels/
 
 data/
 chatterbox/
+output/
+temp_audio/
+

@@ -1,12 +1,11 @@
-import re
 import torch
 import os 
 import shutil
 import random
 
 import torchaudio as ta
+import torchaudio.functional as F
 
-from chatterbox.tts import ChatterboxTTS
 from chatterbox.mtl_tts import ChatterboxMultilingualTTS
 from moviepy import AudioFileClip, CompositeAudioClip
 from moviepy import afx
@@ -15,7 +14,7 @@ from utils import chunk_text
 class AudioMaker:
 
     TEMP_DIR = "./temp_audio"
-    MUSIC_VOLUME = 0.005
+    MUSIC_VOLUME = 0.05
     TTS_VOLUME = 1.0
 
     device = "cpu"
@@ -25,9 +24,7 @@ class AudioMaker:
         pass
     
     def create_tts(self, text: str, language: str, speaker_wav: str, output_dir: str,
-                   exaggeration: float = 0.5, cfg_weight: float = 0.5, 
-                   temperature: float = 0.8, repetition_penalty: float = 2, 
-                   min_p : float = 0.05, top_p: float = 1):
+                   **tts_kwargs):
         model = ChatterboxMultilingualTTS.from_pretrained(device=AudioMaker.device)
         temp_dir = AudioMaker.TEMP_DIR
         silence_duration = 0.1
@@ -36,6 +33,16 @@ class AudioMaker:
             shutil.rmtree(temp_dir)
         os.makedirs(temp_dir)
 
+        tts_params = {
+            'exaggeration': 0.5,
+            'cfg_weight': 0.5,
+            'temperature': 0.8,
+            'repetition_penalty': 2,
+            'min_p': 0.05,
+            'top_p': 1
+        }
+        tts_params.update(tts_kwargs)
+
         chunks = chunk_text(text)
 
         file_paths = []
@@ -43,7 +50,6 @@ class AudioMaker:
         print(f"The text was split into {len(chunks)} chunks")
         for i, chunk in enumerate(chunks):
             print(f"Chunk: {i}")
-
             wav_chunk = model.generate(chunk, language_id=language, audio_prompt_path=speaker_wav, exaggeration=exaggeration, cfg_weight=cfg_weight, temperature=temperature, repetition_penalty=repetition_penalty, min_p=min_p, top_p=top_p)
             file_path = os.path.join(temp_dir, f"chunk_{i}.wav")
             ta.save(file_path, wav_chunk, model.sr)
@@ -64,6 +70,96 @@ class AudioMaker:
         ta.save(output_dir, final_wav.unsqueeze(0), model.sr)
         shutil.rmtree(temp_dir, ignore_errors = True)
         return output_dir
+    
+
+    def create_conversation_tts(self, conversation: list, language: str, 
+                                speaker_wavs: dict, output_dir: str, 
+                                pause_duration: float = 0.3, 
+                                target_rms: float = 0.1,
+                                chunk_threshold: int = 200,
+                                **tts_kwargs):
+
+        model = ChatterboxMultilingualTTS.from_pretrained(device=AudioMaker.device)
+        temp_dir = os.path.join(AudioMaker.TEMP_DIR, "conversation")
+        
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        os.makedirs(temp_dir)
+        
+        tts_params = {
+            'exaggeration': 0.5,
+            'cfg_weight': 0.5,
+            'temperature': 0.8,
+            'repetition_penalty': 2,
+            'min_p': 0.05,
+            'top_p': 1
+        }
+        tts_params.update(tts_kwargs)
+        
+        pause = torch.zeros(int(model.sr * pause_duration))
+        file_paths = []
+        for i, (speaker_id, text) in enumerate(conversation):
+            print(f"Generating turn {i}: Speaker {speaker_id}")
+            
+            if speaker_id not in speaker_wavs:
+                raise ValueError(f"Speaker {speaker_id} not found in speaker_wavs dict")
+            
+            speaker_wav = speaker_wavs[speaker_id]
+
+            if len(text) > chunk_threshold:
+                print(f"  Chunking long text ({len(text)} chars)")
+                chunks = chunk_text(text)
+                turn_audio = []
+                
+                for j, chunk in enumerate(chunks):
+                    wav_chunk = model.generate(
+                        chunk,
+                        language_id=language,
+                        audio_prompt_path=speaker_wav,
+                        **tts_params
+                    )
+                    turn_audio.append(wav_chunk.squeeze(0))
+                    del wav_chunk
+
+                turn_wav = torch.cat(turn_audio, dim=-1)
+                del turn_audio
+            else:
+                wav_chunk = model.generate(
+                    text,
+                    language_id=language,
+                    audio_prompt_path=speaker_wav,
+                    **tts_params
+                )
+                turn_wav = wav_chunk.squeeze(0)
+                del wav_chunk
+
+            current_rms = torch.sqrt(torch.mean(turn_wav ** 2))
+            if current_rms > 0:
+                turn_wav = turn_wav * (target_rms / current_rms)
+            
+            turn_path = os.path.join(temp_dir, f"turn_{i}.wav")
+            ta.save(turn_path, turn_wav.unsqueeze(0), model.sr)
+            file_paths.append(turn_path)
+
+            del turn_wav
+
+        print("Combining all turns into final audio...")
+        audio_segments = []
+        for i, fp in enumerate(file_paths):
+            wav, _ = ta.load(fp)
+            audio_segments.append(wav.squeeze(0))
+            if i < len(file_paths) - 1:
+                audio_segments.append(pause)
+
+        final_wav = torch.cat(audio_segments, dim=-1)
+        ta.save(output_dir, final_wav.unsqueeze(0), model.sr)
+
+
+        # shutil.rmtree(temp_dir, ignore_errors=True)
+        
+        return output_dir
+
+
 
     def merge_voice_with_music(self, music_path: str, tts_path: str, output_path: str):
         music = AudioFileClip(music_path)
@@ -79,6 +175,7 @@ class AudioMaker:
         final_clip = CompositeAudioClip([tts, music_segment])
         final_clip.write_audiofile(output_path, fps=44100)
         return output_path, tts.duration
+    
 
 if __name__ == "__main__":
     audio = AudioMaker()

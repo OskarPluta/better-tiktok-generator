@@ -1,13 +1,11 @@
 import os
 import random
-import json
 
 from moviepy import AudioFileClip, VideoFileClip
-from moviepy import vfx
 
 class VideoMaker:
 
-    def __init__(self, videos_path: str = "data/videos/"):
+    def __init__(self, videos_path: str = "data/videos"):
         self.videos_path = videos_path
 
     def get_all_video_files(self):
@@ -30,9 +28,9 @@ class VideoMaker:
             # video_path = self.video_from_longer_background()
             pass
         else:
-            video_path = self.video_from_longer_background(audio_path=audio_path, output_path=output_path)
+            self.video_from_longer_background(audio_path=audio_path, output_path=output_path)
 
-        return video_path 
+        return output_path 
 
 
     def video_from_longer_background(self, audio_path, output_path):
@@ -43,7 +41,7 @@ class VideoMaker:
         
         audio = AudioFileClip(audio_path)
         random_video_path = random.choice(long_videos)
-        clip = VideoFileClip(random_video_path, audio=False)
+        clip = VideoFileClip(random_video_path, audio=False, fps_source='tbr')
         if clip.duration < audio.duration:
             raise ValueError(f"One of the long videos is shorter than the audio created! Consider moving it to short videos. {random_video_path}")
 
@@ -70,7 +68,7 @@ class VideoMaker:
         clip = clip.subclipped(start, start + audio.duration + 1).with_audio(audio)
         clip.write_videofile(output_path, fps=60)
 
-    def paste_character(img_path, timestamp: tuple(int)):
+    def paste_character(img_path, timestamp):
         pass
         
 
