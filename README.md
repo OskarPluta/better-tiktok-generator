@@ -37,12 +37,12 @@ The repository currently provides:
 - The active example creates a three-speaker conversation, writes it to `temp/conversation_temp.wav`, and mixes it with music as `temp/out_temp.mp3`.
 - A single-narrator, full-video example is retained as commented code and still needs cleanup before it can run end to end.
 
-There is no CLI, configuration file, test suite, or bundled media. Input assets and generated media are intentionally ignored by Git.
+There is no CLI, configuration file, test suite, or bundled media. Input assets and generated media are intentionally ignored by Git. The Python environment itself is reproducible and its complete import path has been verified with the checked-in lockfile.
 
 ## Requirements
 
-- Python 3.11 (the version pinned in `.python-version`).
-- [uv](https://docs.astral.sh/uv/) is recommended because the repository includes `uv.lock`.
+- Python 3.11 (the version pinned in `.python-version` and required by `pyproject.toml`).
+- [uv](https://docs.astral.sh/uv/) for installing the exact environment from `uv.lock`.
 - The FFmpeg executable must be installed and available on `PATH`. The Python package `ffmpeg-python` does not install the executable. Subtitle rendering also requires an FFmpeg build with the `drawtext` filter.
 - Internet access and enough disk space for the Chatterbox, Whisper, and BiRefNet model downloads on first use.
 - A CUDA-capable GPU is optional. The active audio and background-removal code currently selects CPU explicitly, so GPU use requires changing the relevant `device` values.
@@ -57,28 +57,23 @@ ffmpeg -version
 
 ## Installation
 
-Clone the repository and install the locked dependencies:
+Clone the repository and install the locked environment:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/OskarPluta/better-tiktok-generator.git
 cd better-tiktok-generator
-uv sync
+uv sync --frozen
 ```
 
-Two imports used by the source are not currently declared in `pyproject.toml`: Chatterbox is required for TTS, and Transformers is required only for background removal. Install them into the uv environment as needed:
+That single command installs Chatterbox, Transformers, and a mutually compatible PyTorch stack from `uv.lock`. The project intentionally uses Python 3.11 with Torch 2.6, Torchaudio 2.6, and Torchvision 0.21 because these versions satisfy Chatterbox's runtime requirements.
+
+Verify the environment without downloading any AI model weights:
 
 ```bash
-# Required by src/audio_maker.py
-uv pip install chatterbox-tts
-
-# Optional: required by src/background_removal.py
-uv pip install transformers
+uv run python -c "import chatterbox, torch, torchaudio, torchvision, transformers; print(torch.__version__)"
 ```
 
-> [!WARNING]
-> The current upstream `chatterbox-tts` release pins Torch and Torchaudio versions that conflict with the newer versions in this repository's lockfile. The command above identifies the missing package but may downgrade or otherwise change the ML environment. Reconcile and lock one compatible Torch/Chatterbox dependency set before expecting a clean fresh-clone installation.
-
-For a reproducible deployment, add the compatible packages to `pyproject.toml` and regenerate `uv.lock` instead of relying on an environment-only installation.
+The expected Torch version is `2.6.0`. FFmpeg remains a system dependency and is not installed by uv.
 
 ## Asset layout
 
@@ -271,14 +266,18 @@ The script recursively processes JPG, JPEG, PNG, BMP, and WebP files with `zheng
 
 **`ModuleNotFoundError: No module named 'chatterbox'`**
 
-Install the missing runtime package with `uv pip install chatterbox-tts`.
+Restore the complete locked environment instead of installing packages individually:
+
+```bash
+uv sync --frozen
+```
 
 **FFmpeg is missing or subtitles fail with `No such filter: drawtext`**
 
 Install a full FFmpeg build, confirm `ffmpeg -version` works, and check for the filter with:
 
 ```bash
-ffmpeg -filters | grep drawtext
+ffmpeg -hide_banner -filters 2>&1 | grep drawtext
 ```
 
 **No long videos were found**
