@@ -1,6 +1,6 @@
 # Better TikTok Generator
 
-An experimental Python toolkit for building narrated, vertical short-form videos from local media. It combines multilingual voice cloning, background music, a randomly selected video background, word-level text alignment, animated subtitles, and optional character background removal.
+A Python toolkit for building narrated, vertical short-form videos from local media. It combines multilingual voice cloning, background music, a randomly selected video background, word-level text alignment, animated subtitles, and optional character background removal.
 
 ## What it does
 
@@ -107,7 +107,7 @@ temp/                             # intermediate audio/video
 output/                           # final videos
 ```
 
-Use only voices and media that you have permission to clone, modify, and publish. A clear reference recording with one speaker and little background noise generally gives the TTS model better material to imitate.
+A clear reference recording with one speaker and little background noise generally gives the TTS model better material to imitate.
 
 ## Quick start: conversation audio
 
@@ -141,10 +141,6 @@ temp/out_temp.mp3
 ```
 
 Model initialization and audio generation can take a while on CPU, especially on the first run.
-
-## Using the pipeline components
-
-The modules under `src/` are imported by adding `src` to `sys.path`, as demonstrated in `main.py`. The examples below assume the same setup.
 
 ### Generate a multi-speaker track
 
@@ -238,71 +234,3 @@ uv run python src/background_removal.py
 ```
 
 The script recursively processes JPG, JPEG, PNG, BMP, and WebP files with `zhengpeng7/BiRefNet`. It preserves subdirectories, writes transparent PNGs under `data/characters_without_background`, and skips outputs that already exist. It downloads model code with `trust_remote_code=True`; review and pin remote model code before using this in a security-sensitive environment.
-
-## Code map
-
-| Path | Responsibility |
-| --- | --- |
-| `main.py` | Editable orchestration example; currently runs conversation TTS and music mixing. |
-| `src/audio_maker.py` | Chatterbox model loading, text/turn generation, normalization, concatenation, and music mixing. |
-| `src/video_maker.py` | Background discovery, random excerpt selection, 9:16 crop, resize, and audio attachment. |
-| `src/transcriber.py` | stable-ts alignment, word grouping, FFmpeg subtitle filters, and watermark rendering. |
-| `src/background_removal.py` | Recursive BiRefNet foreground segmentation and transparent PNG export. |
-| `src/utils.py` | Sentence-aware text chunking. |
-
-## Known limitations
-
-- `AudioMaker.create_tts` currently passes undefined local variables to `model.generate`; use `create_conversation_tts` or fix the method to pass `**tts_params`.
-- `Transcriber.add_subtitles` calls `_get_watermark_filter` with an extra argument, passes `vcoded` instead of `vcodec`, and includes encoder-specific values such as `preset="p6"`/`tune="hq"`; these issues must be corrected before subtitle export works.
-- Only the single-long-background branch is implemented. Multiple backgrounds and character overlays are stubs, and files in `data/videos/short` are not used.
-- The video code randomly chooses from all long clips before checking their duration. One too-short file can therefore fail an otherwise valid run.
-- Conversation turn files under `temp_audio/conversation` are retained because their cleanup is commented out.
-- Parent directories for requested output paths are not created automatically.
-- Device selection is inconsistent: TTS and BiRefNet are set to CPU in the source, while `Transcriber` defaults to CUDA unless a different device is passed.
-- Several clips, excerpts, and output details are random, with no seeded reproducibility.
-- Media files, `data/`, `output/`, and model-related working directories are Git-ignored, so a fresh clone contains no runnable sample assets.
-
-## Troubleshooting
-
-**`ModuleNotFoundError: No module named 'chatterbox'`**
-
-Restore the complete locked environment instead of installing packages individually:
-
-```bash
-uv sync --frozen
-```
-
-**FFmpeg is missing or subtitles fail with `No such filter: drawtext`**
-
-Install a full FFmpeg build, confirm `ffmpeg -version` works, and check for the filter with:
-
-```bash
-ffmpeg -hide_banner -filters 2>&1 | grep drawtext
-```
-
-**No long videos were found**
-
-Place an MP4, MOV, AVI, or MKV file under `data/videos/long`. Lowercase file extensions are safest because the current check is case-sensitive.
-
-**The selected background is shorter than the generated audio**
-
-Move short footage out of `data/videos/long` or provide clips that are at least one second longer than the narration.
-
-**An output path does not exist**
-
-Create its parent directory first; for the checked-in example, run `mkdir -p temp output`.
-
-**Model loading is slow or memory-heavy**
-
-The project loads large models when each component is constructed. Run only the stages you need, delete component instances between stages as `main.py` does, use smaller Whisper models where acceptable, and select a supported accelerator explicitly.
-
-## Upstream projects
-
-- [Chatterbox](https://github.com/resemble-ai/chatterbox) for multilingual voice cloning and speech generation.
-- [stable-ts](https://github.com/jianfch/stable-ts) and [OpenAI Whisper](https://github.com/openai/whisper) for forced alignment.
-- [MoviePy](https://github.com/Zulko/moviepy) and [FFmpeg](https://ffmpeg.org/) for media composition and encoding.
-- [BiRefNet](https://github.com/ZhengPeng7/BiRefNet) for image segmentation.
-
-## License
-
-No project license is included in this repository. Before redistributing or building on the code, add an explicit license and verify the licenses and usage terms of the models, fonts, voices, music, and footage used in generated content.
