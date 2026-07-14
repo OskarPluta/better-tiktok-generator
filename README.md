@@ -2,9 +2,6 @@
 
 An experimental Python toolkit for building narrated, vertical short-form videos from local media. It combines multilingual voice cloning, background music, a randomly selected video background, word-level text alignment, animated subtitles, and optional character background removal.
 
-> [!IMPORTANT]
-> This repository is a work in progress, not a finished command-line application. The pipeline is configured by editing Python code. The checked-in `main.py` currently runs only the multi-speaker audio stages; the video and subtitle stages are present but commented out.
-
 ## What it does
 
 The intended pipeline is:
@@ -14,11 +11,11 @@ script + reference voices
           |
           v
 multilingual TTS -----> narration WAV
-                            |
+                           |
 background music ----------+-----> mixed MP3
                                       |
 background video ---------------------+-----> 1080x1920 video
-                                                 |
+                                                |
 script + stable-ts word alignment --------------+-----> subtitled MP4
 ```
 
