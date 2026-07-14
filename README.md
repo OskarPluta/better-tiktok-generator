@@ -221,10 +221,6 @@ transcriber.add_subtitles(
 )
 ```
 
-Alignment uses the exact script, not speech recognition alone. Keep the script in the same order as the generated audio. The renderer groups words using duration and character limits, then places animated white text in the center of the frame.
-
-The current FFmpeg export arguments in `Transcriber.add_subtitles` need correction before this stage is reliable; see [Known limitations](#known-limitations).
-
 ### Remove image backgrounds in bulk
 
 Place images anywhere under `data/characters`, then run:
