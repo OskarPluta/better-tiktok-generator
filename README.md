@@ -30,15 +30,6 @@ The repository currently provides:
 - Short, animated, burned-in subtitle groups and an optional watermark.
 - Batch image background removal with BiRefNet.
 
-## Project status
-
-`main.py` contains two examples:
-
-- The active example creates a three-speaker conversation, writes it to `temp/conversation_temp.wav`, and mixes it with music as `temp/out_temp.mp3`.
-- A single-narrator, full-video example is retained as commented code and still needs cleanup before it can run end to end.
-
-There is no CLI, configuration file, test suite, or bundled media. Input assets and generated media are intentionally ignored by Git. The Python environment itself is reproducible and its complete import path has been verified with the checked-in lockfile.
-
 ## Requirements
 
 - Python 3.11 (the version pinned in `.python-version` and required by `pyproject.toml`).
